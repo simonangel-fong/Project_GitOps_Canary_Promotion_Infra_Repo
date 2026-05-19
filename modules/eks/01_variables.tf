@@ -7,7 +7,7 @@ variable "cluster_name" {
 variable "cluster_version" {
   description = "Kubernetes version for the EKS cluster"
   type        = string
-  default     = "1.31"
+  default     = "1.35"
 }
 
 variable "subnet_ids" {
@@ -42,16 +42,16 @@ variable "cluster_tags" {
 variable "cluster_addons" {
   description = "EKS managed add-ons to install. Map key is the add-on name (e.g. coredns, kube-proxy, vpc-cni, eks-pod-identity-agent). Set addon_version to null to use the latest compatible version."
   type = map(object({
-    addon_version            = optional(string)
-    service_account_role_arn = optional(string)
-    configuration_values     = optional(string)
+    addon_version               = optional(string)
+    service_account_role_arn    = optional(string)
+    configuration_values        = optional(string)
     resolve_conflicts_on_create = optional(string, "OVERWRITE")
     resolve_conflicts_on_update = optional(string, "OVERWRITE")
   }))
   default = {
-    coredns                = {}
-    kube-proxy             = {}
-    vpc-cni                = {}
-    eks-pod-identity-agent = {}
+    coredns                = { most_recent = true }
+    kube-proxy             = { most_recent = true }
+    vpc-cni                = { most_recent = true }
+    eks-pod-identity-agent = { most_recent = true }
   }
 }

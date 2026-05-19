@@ -38,3 +38,14 @@ module "eks_node_group" {
 
   node_group_tags = local.tags
 }
+
+# ##############################
+# ArgoCD
+# ##############################
+module "eks_argocd" {
+  source = "../../modules/eks_argocd"
+
+  gitops_repo_url = "https://github.com/simonangel-fong/Project_GitOps_Config_Repo.git"
+
+  depends_on = [module.eks_node_group]
+}

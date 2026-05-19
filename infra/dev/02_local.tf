@@ -24,7 +24,7 @@ locals {
   # EKS
   # ##############################
   cluster_name    = "${local.project_name}-${var.env}"
-  cluster_version = "1.31"
+  cluster_version = "1.35"
 
   #   node_instance_types = ["t3.medium"]
   #   node_min_size       = 1
