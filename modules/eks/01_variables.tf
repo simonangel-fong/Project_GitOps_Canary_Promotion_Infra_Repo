@@ -38,3 +38,20 @@ variable "cluster_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "cluster_addons" {
+  description = "EKS managed add-ons to install. Map key is the add-on name (e.g. coredns, kube-proxy, vpc-cni, eks-pod-identity-agent). Set addon_version to null to use the latest compatible version."
+  type = map(object({
+    addon_version            = optional(string)
+    service_account_role_arn = optional(string)
+    configuration_values     = optional(string)
+    resolve_conflicts_on_create = optional(string, "OVERWRITE")
+    resolve_conflicts_on_update = optional(string, "OVERWRITE")
+  }))
+  default = {
+    coredns                = {}
+    kube-proxy             = {}
+    vpc-cni                = {}
+    eks-pod-identity-agent = {}
+  }
+}

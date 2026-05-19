@@ -8,3 +8,9 @@ output "cluster_certificate_authority_data" { value = aws_eks_cluster.main.certi
 output "cluster_security_group_id" { value = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id }
 output "cluster_oidc_issuer_url" { value = aws_eks_cluster.main.identity[0].oidc[0].issuer }
 output "cluster_role_arn" { value = aws_iam_role.cluster.arn }
+output "cluster_addons" {
+  value = { for k, a in aws_eks_addon.this : k => {
+    arn     = a.arn
+    version = a.addon_version
+  } }
+}

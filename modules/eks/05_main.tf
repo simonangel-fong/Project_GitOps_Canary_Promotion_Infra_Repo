@@ -29,6 +29,23 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
 }
 
 # ##############################
+# EKS Managed Add-ons
+# ##############################
+resource "aws_eks_addon" "this" {
+  for_each = var.cluster_addons
+
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = each.key
+  addon_version               = each.value.addon_version
+  service_account_role_arn    = each.value.service_account_role_arn
+  configuration_values        = each.value.configuration_values
+  resolve_conflicts_on_create = each.value.resolve_conflicts_on_create
+  resolve_conflicts_on_update = each.value.resolve_conflicts_on_update
+
+  tags = var.cluster_tags
+}
+
+# ##############################
 # EKS Cluster
 # ##############################
 resource "aws_eks_cluster" "main" {

@@ -24,8 +24,8 @@ module "eks" {
 # ##############################
 # EKS Node Group
 # ##############################
-module "node_group" {
-  source = "../../modules/node_group"
+module "eks_node_group" {
+  source = "../../modules/eks_node_group"
 
   cluster_name    = module.eks.cluster_name
   node_group_name = "default"
