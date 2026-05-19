@@ -20,10 +20,12 @@ locals {
   vpc_name = "${local.project_name}-${var.env}"
   vpc_cidr = "10.0.0.0/16"
 
-  #   # ##############################
-  #   # EKS
-  #   # ##############################
-  #   cluster_name        = "${local.project_name}-${var.env}"
+  # ##############################
+  # EKS
+  # ##############################
+  cluster_name    = "${local.project_name}-${var.env}"
+  cluster_version = "1.31"
+
   #   node_instance_types = ["t3.medium"]
   #   node_min_size       = 1
   #   node_max_size       = 3
