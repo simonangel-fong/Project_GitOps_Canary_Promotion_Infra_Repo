@@ -20,3 +20,21 @@ module "eks" {
   subnet_ids      = module.vpc.private_subnet_ids
   cluster_tags    = local.tags
 }
+
+# ##############################
+# EKS Node Group
+# ##############################
+module "node_group" {
+  source = "../../modules/node_group"
+
+  cluster_name    = module.eks.cluster_name
+  node_group_name = "default"
+  subnet_ids      = module.vpc.private_subnet_ids
+
+  instance_types = ["t3.medium"]
+  desired_size   = 1
+  min_size       = 1
+  max_size       = 3
+
+  node_group_tags = local.tags
+}

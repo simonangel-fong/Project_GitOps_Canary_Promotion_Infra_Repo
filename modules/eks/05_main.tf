@@ -32,12 +32,13 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
 # EKS Cluster
 # ##############################
 resource "aws_eks_cluster" "main" {
-  name     = var.cluster_name
-  role_arn = aws_iam_role.cluster.arn
-  version  = var.cluster_version
+  name    = var.cluster_name
+  version = var.cluster_version
 
+  role_arn = aws_iam_role.cluster.arn
   access_config {
-    authentication_mode = "API_AND_CONFIG_MAP"
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
   vpc_config {
