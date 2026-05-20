@@ -87,7 +87,7 @@ module "eks_argocd" {
   gitops_repo_url      = "https://github.com/simonangel-fong/Project_GitOps_Platform_Repo.git"
   gitops_repo_revision = "main"
   gitops_repo_path     = "bootstrap"
-  root_app_name        = "app-of-apps"
+  root_app_name        = "00-app-of-apps"
   root_app_project     = "default"
 
   depends_on = [

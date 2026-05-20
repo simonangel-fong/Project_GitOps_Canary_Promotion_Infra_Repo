@@ -7,14 +7,6 @@ locals {
   albc_sa_name      = "aws-load-balancer-controller"
 }
 
-data "http" "albc_iam_policy" {
-  url = "https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.8.2/docs/install/iam_policy.json"
-
-  request_headers = {
-    Accept = "application/json"
-  }
-}
-
 # Trust policy: only the ALBC ServiceAccount in kube-system can assume this role
 data "aws_iam_policy_document" "albc_assume" {
   statement {
@@ -51,7 +43,7 @@ resource "aws_iam_role" "albc" {
 resource "aws_iam_policy" "albc" {
   name        = "${module.eks.cluster_name}-albc"
   description = "Permissions for AWS Load Balancer Controller to manage ALBs/NLBs and related resources"
-  policy      = data.http.albc_iam_policy.response_body
+  policy      = file("${path.module}/../manifests/iam-policy.json")
 
   tags = local.tags
 }
