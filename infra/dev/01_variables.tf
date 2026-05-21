@@ -13,6 +13,16 @@ variable "aws_region" {
 }
 
 # # ##############################
+# # ArgoCD notifications
+# # ##############################
+# variable "slack_bot_token" {
+#   description = "Slack bot OAuth token (xoxb-...) for ArgoCD notifications."
+#   type        = string
+#   sensitive   = true
+#   default     = ""
+# }
+
+# # ##############################
 # # cloudflare
 # # ##############################
 # variable "cf_api_token" {

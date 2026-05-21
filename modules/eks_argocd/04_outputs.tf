@@ -5,3 +5,7 @@ output "chart_version" { value = helm_release.argocd.version }
 output "root_app_name" {
   value = var.enable_root_app ? var.root_app_name : null
 }
+# output "notifications_enabled" {
+#   description = "Whether the ArgoCD notifications sub-component is enabled"
+#   value       = var.enable_notifications
+# }

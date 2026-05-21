@@ -36,7 +36,7 @@ module "eks_node_group" {
   subnet_ids      = module.vpc.private_subnet_ids
 
   instance_types = ["t3.medium"]
-  desired_size   = 2
+  desired_size   = 1
   min_size       = 1
   max_size       = 3
 
@@ -89,6 +89,16 @@ module "eks_argocd" {
   gitops_repo_path     = "bootstrap"
   root_app_name        = "00-app-of-apps"
   root_app_project     = "default"
+
+  # # Slack notifications (auto-disabled until slack_bot_token is set in terraform.tfvars)
+  # enable_notifications = var.slack_bot_token != ""
+  # slack_token          = var.slack_bot_token
+  # notifications_default_subscriptions = [
+  #   {
+  #     recipients = ["slack:project-gitops-demo"]
+  #     triggers   = ["on-sync-failed", "on-health-degraded"]
+  #   },
+  # ]
 
   depends_on = [
     # module.eks_node_group,

@@ -7,6 +7,7 @@ Terraform module that installs [Argo CD](https://argo-cd.readthedocs.io/) onto a
 1. Installs the `argo-cd` Helm chart from `https://argoproj.github.io/argo-helm` into the chosen namespace (created if missing).
 2. Applies a default `values.yaml` (ClusterIP server, empty global domain) merged with any extra values you pass.
 3. If `enable_root_app = true`, applies a single `Application` manifest that tells Argo CD to sync `gitops_repo_path` from `gitops_repo_url` — the entry point of the app-of-apps pattern.
+4. If `enable_notifications = true`, configures the chart's notifications sub-component for Slack. The Helm chart creates `argocd-notifications-secret` with the Slack bot token; subscriptions are typically annotated on individual `Application` manifests in the GitOps repo.
 
 ## Requirements
 
@@ -95,6 +96,36 @@ module "eks_argocd" {
 }
 ```
 
+### Enable Slack notifications
+
+```hcl
+module "eks_argocd" {
+  source = "../../modules/eks_argocd"
+
+  gitops_repo_url = "https://github.com/your-org/your-gitops-config-repo.git"
+
+  # Slack notifications
+  enable_notifications = true
+  slack_token          = var.slack_bot_token # xoxb-... ; sensitive
+
+  # Optional: cluster-wide subscriptions. Omit to require per-Application annotations.
+  notifications_default_subscriptions = [
+    {
+      recipients = ["slack:platform-alerts"]
+      triggers   = ["on-sync-failed", "on-health-degraded"]
+    },
+  ]
+}
+```
+
+Per-`Application` subscription annotation (managed in your GitOps repo, not here):
+
+```yaml
+metadata:
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: my-channel
+```
+
 ## Inputs
 
 | Name                   | Description                                                                            | Type     | Default       | Required |
@@ -109,15 +140,20 @@ module "eks_argocd" {
 | `gitops_repo_path`     | Path inside the GitOps repo with the root app-of-apps manifests                        | `string` | `"bootstrap"` |    no    |
 | `root_app_name`        | Name of the root Argo `Application`                                                    | `string` | `"root"`      |    no    |
 | `root_app_project`     | Argo CD project the root application belongs to                                        | `string` | `"default"`   |    no    |
+| `enable_notifications` | Enable Argo CD notifications sub-component (Slack)                                     | `bool`   | `false`       |    no    |
+| `slack_token`          | Slack bot OAuth token (`xoxb-...`); required when `enable_notifications = true`. Sensitive. | `string` | `""`     |    no    |
+| `notifications_default_subscriptions` | Optional cluster-wide subscriptions; each `{recipients, triggers}`      | `list(object({recipients=list(string), triggers=list(string)}))` | `[]` | no |
+| `notifications_extra_values` | Extra Helm values YAML merged into the notifications block (custom templates/triggers) | `string` | `""`     |    no    |
 
 ## Outputs
 
-| Name            | Description                                             |
-| --------------- | ------------------------------------------------------- |
-| `namespace`     | Namespace where Argo CD was installed                   |
-| `release_name`  | Helm release name                                       |
-| `chart_version` | Installed chart version                                 |
-| `root_app_name` | Name of the root `Application`, or `null` when disabled |
+| Name                    | Description                                             |
+| ----------------------- | ------------------------------------------------------- |
+| `namespace`             | Namespace where Argo CD was installed                   |
+| `release_name`          | Helm release name                                       |
+| `chart_version`         | Installed chart version                                 |
+| `root_app_name`         | Name of the root `Application`, or `null` when disabled |
+| `notifications_enabled` | Whether the Argo CD notifications sub-component is enabled |
 
 ## Accessing the Argo CD UI
 
@@ -141,6 +177,7 @@ Then open <https://localhost:8080> and log in as `admin`.
 - The Helm release is created with `wait = true` and a 600 s `timeout` because Argo CD CRDs are large and slow to install.
 - The root `Application` has `automated.prune = true` and `selfHeal = true`; anything you remove from the GitOps repo will be pruned from the cluster.
 - Always set `depends_on = [module.eks_node_group]` (or whatever creates worker nodes) so the chart has somewhere to schedule pods.
+- When `enable_notifications = true`, the Helm chart manages `argocd-notifications-secret` directly via `notifications.secret.create = true`. The token is passed through Helm values and will be stored in Terraform state — use an encrypted remote state backend (e.g. S3 with SSE and tight IAM) and rotate the bot token if state access is compromised.
 
 ---
 
@@ -151,5 +188,5 @@ kubectl port-forward svc/argocd-server 8000:80 -n argocd
 
 k get secret argocd-initial-admin-secret -n argocd -o yaml
 
-echo NXZtamphSUZIcVRXTWFvWA== | base64 -d
+echo "" | base64 -d
 ```

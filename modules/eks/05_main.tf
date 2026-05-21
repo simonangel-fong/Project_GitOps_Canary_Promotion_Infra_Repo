@@ -88,6 +88,30 @@ resource "aws_ec2_tag" "cluster_security_group" {
 }
 
 # ##############################
+# Cluster Security Group — Additional Ingress Rules
+# (applied to the cluster SG that worker nodes attach to)
+# ##############################
+resource "aws_vpc_security_group_ingress_rule" "node_additional" {
+  for_each = var.node_security_group_additional_rules
+
+  security_group_id = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+
+  description = each.value.description
+  ip_protocol = each.value.ip_protocol
+  from_port   = each.value.ip_protocol == "-1" ? null : each.value.from_port
+  to_port     = each.value.ip_protocol == "-1" ? null : each.value.to_port
+
+  cidr_ipv4                    = each.value.cidr_ipv4
+  cidr_ipv6                    = each.value.cidr_ipv6
+  referenced_security_group_id = each.value.self ? aws_eks_cluster.main.vpc_config[0].cluster_security_group_id : each.value.referenced_security_group_id
+
+  tags = merge(
+    var.cluster_tags,
+    { Name = "${var.cluster_name}-node-${each.key}" }
+  )
+}
+
+# ##############################
 # OIDC Provider
 # (required for IRSA — IAM roles assumed by service accounts)
 # ##############################

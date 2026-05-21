@@ -11,6 +11,28 @@ locals {
     }
   })
 
+  # notifications_values = var.enable_notifications ? yamlencode({
+  #   notifications = merge(
+  #     {
+  #       enabled = true
+  #       notifiers = {
+  #         # Chart expects this as a YAML-formatted STRING (copied verbatim
+  #         # into argocd-notifications-cm), not a nested map.
+  #         "service.slack" = "token: $slack-token\n"
+  #       }
+  #       secret = {
+  #         create = true
+  #         items = {
+  #           "slack-token" = var.slack_token
+  #         }
+  #       }
+  #     },
+  #     length(var.notifications_default_subscriptions) > 0
+  #     ? { subscriptions = var.notifications_default_subscriptions }
+  #     : {}
+  #   )
+  # }) : ""
+
   root_application = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "Application"

@@ -45,6 +45,21 @@ variable "node_security_group_tags" {
   default     = {}
 }
 
+variable "node_security_group_additional_rules" {
+  description = "Additional ingress rules added to the cluster security group (used by worker nodes). Set `self = true` to allow traffic from the same SG, or provide `cidr_ipv4` / `referenced_security_group_id`. Use `ip_protocol = \"-1\"` with `from_port = 0` / `to_port = 0` to allow all."
+  type = map(object({
+    description                  = optional(string)
+    ip_protocol                  = string
+    from_port                    = optional(number)
+    to_port                      = optional(number)
+    self                         = optional(bool, false)
+    cidr_ipv4                    = optional(string)
+    cidr_ipv6                    = optional(string)
+    referenced_security_group_id = optional(string)
+  }))
+  default = {}
+}
+
 variable "cluster_addons" {
   description = "EKS managed add-ons to install. Map key is the add-on name (e.g. coredns, kube-proxy, vpc-cni, eks-pod-identity-agent). Set addon_version to null to use the latest compatible version."
   type = map(object({

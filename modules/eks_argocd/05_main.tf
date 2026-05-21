@@ -13,6 +13,8 @@ resource "helm_release" "argocd" {
 
   values = compact([
     local.default_values,
+    # local.notifications_values,
+    # var.notifications_extra_values,
     var.values,
   ])
 
