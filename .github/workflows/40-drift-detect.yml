@@ -1,0 +1,51 @@
+name: 40-drift-detect
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+concurrency:
+  group: drift-detect
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  drift:
+    name: drift (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev, stage, prod]
+    environment: ${{ matrix.env }}-readonly
+    env:
+      TF_VAR_env: ${{ matrix.env }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_cloudflare_api_key: ${{ secrets.TF_VAR_cloudflare_api_key }}
+      TF_VAR_slack_bot_token: ${{ secrets.TF_VAR_slack_bot_token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Terraform drift plan
+        id: drift
+        uses: ./.github/actions/tf-apply
+        with:
+          mode: drift
+          tf-env: ${{ matrix.env }}
+          project-name: ${{ vars.PROJECT_NAME }}
+          aws-cicd-role-arn: ${{ secrets.AWS_CICD_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-backend-bucket: ${{ secrets.AWS_BACKEND_BUCKET }}
+
+      - name: Notify Slack on drift
+        if: steps.drift.outputs.drift-exit-code == '2'
+        uses: ./.github/actions/notify-slack
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          needs-context: '{"drift-${{ matrix.env }}":{"result":"failure"}}'
