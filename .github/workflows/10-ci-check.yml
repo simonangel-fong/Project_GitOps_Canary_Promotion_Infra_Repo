@@ -90,21 +90,20 @@ jobs:
           summary-title: Trivy secret scan
           trivyignores: ${{ github.workspace }}/.trivyignore
 
-  # notify-slack:
-  #   name: notify-slack
-  #   runs-on: ubuntu-latest
-  #   needs:
-  #     - tf-lint-check
-  #     - tf-sec-scan
-  #     - k8s-sec-scan
-  #     - secret-scan
-  #   if: always()
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v6.0.2
+  notify-slack:
+    name: notify-slack
+    runs-on: ubuntu-latest
+    needs:
+      - tf-lint-check
+      - tf-sec-scan
+      - secret-scan
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
 
-  #     - name: Notify Slack
-  #       uses: ./.github/actions/notify-slack
-  #       with:
-  #         webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
-  #         needs-context: ${{ toJSON(needs) }}
+      - name: Notify Slack
+        uses: ./.github/actions/notify-slack
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          needs-context: ${{ toJSON(needs) }}
