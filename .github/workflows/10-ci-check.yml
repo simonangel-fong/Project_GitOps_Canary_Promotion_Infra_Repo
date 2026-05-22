@@ -73,39 +73,22 @@ jobs:
           summary-title: Trivy IaC scan (Terraform)
           trivyignores: ${{ github.workspace }}/.trivyignore
 
-  # k8s-sec-scan:
-  #   name: k8s-sec-scan
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v6.0.2
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
 
-  #     - name: Trivy IaC Scan (Kubernetes)
-  #       uses: ./.github/actions/security-scan
-  #       with:
-  #         scan-mode: config
-  #         scan-ref: ${{ env.K8S_SCAN_DIR }}
-  #         sarif-category: trivy-iac-k8s
-  #         summary-title: Trivy IaC scan (Kubernetes)
-  #         trivyignores: ${{ github.workspace }}/.trivyignore
-
-  # secret-scan:
-  #   name: secret-scan
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v6.0.2
-
-  #     - name: Trivy FS Secret Scan (repo)
-  #       uses: ./.github/actions/security-scan
-  #       with:
-  #         scan-mode: secret
-  #         scan-ref: .
-  #         sarif-category: trivy-secret
-  #         summary-title: Trivy secret scan
-  #         trivyignores: ${{ github.workspace }}/.trivyignore
+      - name: Trivy FS Secret Scan (repo)
+        uses: ./.github/actions/security-scan
+        with:
+          scan-mode: secret
+          scan-ref: .
+          sarif-category: trivy-secret
+          summary-title: Trivy secret scan
+          trivyignores: ${{ github.workspace }}/.trivyignore
 
   # notify-slack:
   #   name: notify-slack
