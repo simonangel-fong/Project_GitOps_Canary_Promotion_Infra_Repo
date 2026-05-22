@@ -18,33 +18,66 @@ runs:
       env:
         NEEDS_JSON: ${{ inputs.needs-context }}
         WORKFLOW_NAME: ${{ github.workflow }}
+        REPO: ${{ github.repository }}
       run: |
-        if echo "$NEEDS_JSON" | grep -E '"result"[[:space:]]*:[[:space:]]*"(failure|cancelled)"' > /dev/null; then
-          echo "icon=:x:" >> "$GITHUB_OUTPUT"
-          echo "color=danger" >> "$GITHUB_OUTPUT"
-          echo "title=${WORKFLOW_NAME} failed" >> "$GITHUB_OUTPUT"
+        if echo "$NEEDS_JSON" | jq -e 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled")' >/dev/null; then
+          icon=":x:"
+          color="danger"
+          state="failed"
+        elif echo "$NEEDS_JSON" | jq -e 'to_entries | all(.value.result == "success")' >/dev/null; then
+          icon=":white_check_mark:"
+          color="good"
+          state="succeeded"
         else
-          echo "icon=:white_check_mark:" >> "$GITHUB_OUTPUT"
-          echo "color=good" >> "$GITHUB_OUTPUT"
-          echo "title=${WORKFLOW_NAME} succeeded" >> "$GITHUB_OUTPUT"
+          icon=":warning:"
+          color="warning"
+          state="completed with skipped jobs"
         fi
+        {
+          echo "icon=${icon}"
+          echo "color=${color}"
+          echo "title=${REPO} — ${WORKFLOW_NAME} ${state}"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Build Slack payload
+      id: payload
+      shell: bash
+      env:
+        ICON: ${{ steps.status.outputs.icon }}
+        COLOR: ${{ steps.status.outputs.color }}
+        TITLE: ${{ steps.status.outputs.title }}
+        REPO: ${{ github.repository }}
+        WORKFLOW_NAME: ${{ github.workflow }}
+        BRANCH: ${{ github.ref_name }}
+        COMMIT: ${{ github.sha }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        jq -n \
+          --arg icon    "$ICON" \
+          --arg color   "$COLOR" \
+          --arg title   "$TITLE" \
+          --arg repo    "$REPO" \
+          --arg wf      "$WORKFLOW_NAME" \
+          --arg branch  "$BRANCH" \
+          --arg commit  "$COMMIT" \
+          --arg run_url "$RUN_URL" \
+          '{
+            text: "\($icon) *\($title)*",
+            attachments: [{
+              color: $color,
+              fields: [
+                { title: "Repository", value: $repo,   short: true },
+                { title: "Workflow",   value: $wf,     short: true },
+                { title: "Branch",     value: $branch, short: true },
+                { title: "Commit",     value: $commit, short: true },
+                { title: "Run",        value: $run_url, short: false }
+              ]
+            }]
+          }' > slack-payload.json
 
     - name: Notify Slack
       uses: slackapi/slack-github-action@v3.0.3
       with:
         webhook: ${{ inputs.webhook-url }}
         webhook-type: incoming-webhook
-        payload: |
-          {
-            "text": "${{ steps.status.outputs.icon }} *${{ steps.status.outputs.title }}*",
-            "attachments": [
-              {
-                "color": "${{ steps.status.outputs.color }}",
-                "fields": [
-                  { "title": "Branch",  "value": "${{ github.ref_name }}", "short": true },
-                  { "title": "Commit",  "value": "${{ github.sha }}", "short": true },
-                  { "title": "Run",     "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
-                ]
-              }
-            ]
-          }
+        payload-file-path: slack-payload.json
