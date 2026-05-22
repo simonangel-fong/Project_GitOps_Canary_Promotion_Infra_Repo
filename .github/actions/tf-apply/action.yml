@@ -1,0 +1,150 @@
+name: tf-apply
+description: Run terraform init/plan/apply against an AWS S3 backend using OIDC. Supports split plan/apply for approval-gated environments.
+
+inputs:
+  mode:
+    description: "Execution mode: 'plan-apply' (default, runs both), 'plan' (init+plan+upload artifact, stop), 'apply' (download artifact + apply)."
+    required: false
+    default: plan-apply
+  project-name:
+    description: Project name; used as a prefix in the S3 state key.
+    required: true
+  tf-env:
+    description: Target environment (e.g. dev, stage, prod); used in the S3 state key.
+    required: true
+  tf-version:
+    description: Terraform CLI version to install.
+    required: false
+    default: "1.15.2"
+  tf-dir:
+    description: Working directory containing the root Terraform module.
+    required: false
+    default: infra
+  aws-cicd-role-arn:
+    description: IAM role ARN to assume via OIDC.
+    required: true
+  aws-region:
+    description: AWS region for the provider and S3 backend.
+    required: true
+  aws-backend-bucket:
+    description: S3 bucket holding the Terraform state file.
+    required: true
+  is-destroy:
+    description: When 'true', generate a destroy plan instead of an apply plan.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Validate mode
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+      run: |
+        case "$MODE" in
+          plan|apply|plan-apply) ;;
+          *) echo "::error::mode must be 'plan', 'apply', or 'plan-apply', got '$MODE'"; exit 1 ;;
+        esac
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v4.0.1
+      with:
+        terraform_version: ${{ inputs.tf-version }}
+
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ inputs.aws-cicd-role-arn }}
+        aws-region: ${{ inputs.aws-region }}
+        role-session-name: gha-tf-apply-${{ inputs.tf-env }}-${{ github.run_id }}
+        audience: sts.amazonaws.com
+
+    - name: Configure Terraform plugin cache
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.terraform.d/plugin-cache"
+        printf 'plugin_cache_dir = "%s/.terraform.d/plugin-cache"\n' "$HOME" > "$HOME/.terraformrc"
+
+    - name: Cache Terraform plugins
+      uses: actions/cache@v5.0.5
+      with:
+        path: ~/.terraform.d/plugin-cache
+        key: ${{ runner.os }}-terraform-${{ inputs.tf-version }}-${{ hashFiles(format('{0}/.terraform.lock.hcl', inputs.tf-dir)) }}
+        restore-keys: |
+          ${{ runner.os }}-terraform-${{ inputs.tf-version }}-
+
+    - name: Terraform init - S3 backend
+      shell: bash
+      working-directory: ${{ inputs.tf-dir }}
+      env:
+        TF_IN_AUTOMATION: "1"
+        BACKEND_BUCKET: ${{ inputs.aws-backend-bucket }}
+        BACKEND_REGION: ${{ inputs.aws-region }}
+        PROJECT_NAME: ${{ inputs.project-name }}
+        TF_ENV: ${{ inputs.tf-env }}
+      run: |
+        terraform init -input=false \
+          -backend-config="bucket=${BACKEND_BUCKET}" \
+          -backend-config="region=${BACKEND_REGION}" \
+          -backend-config="key=${PROJECT_NAME}/${TF_ENV}/terraform.tfstate" \
+          -backend-config="encrypt=true"
+
+    - name: Download plan artifact
+      if: inputs.mode == 'apply'
+      uses: actions/download-artifact@v6
+      with:
+        name: tfplan-${{ inputs.is-destroy == 'true' && 'destroy' || 'deploy' }}-${{ inputs.tf-env }}
+        path: ${{ inputs.tf-dir }}
+
+    - name: Terraform Plan
+      if: inputs.mode != 'apply'
+      shell: bash
+      working-directory: ${{ inputs.tf-dir }}
+      env:
+        TF_IN_AUTOMATION: "1"
+        IS_DESTROY: ${{ inputs.is-destroy }}
+      run: |
+        if [ "$IS_DESTROY" = "true" ]; then
+          terraform plan -destroy -out=tfplan -input=false -no-color
+        else
+          terraform plan -out=tfplan -input=false -no-color
+        fi
+        terraform show -no-color tfplan > tfplan.txt
+        terraform show -json tfplan > tfplan.json
+
+    - name: Publish plan to job summary
+      if: inputs.mode != 'apply'
+      shell: bash
+      working-directory: ${{ inputs.tf-dir }}
+      env:
+        TF_ENV: ${{ inputs.tf-env }}
+        IS_DESTROY: ${{ inputs.is-destroy }}
+      run: |
+        {
+          echo "## Terraform plan — \`${TF_ENV}\`$([ "$IS_DESTROY" = "true" ] && echo ' (destroy)')"
+          echo ""
+          echo '```hcl'
+          cat tfplan.txt
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Save plan artifact
+      if: inputs.mode != 'apply'
+      uses: actions/upload-artifact@v7
+      with:
+        name: tfplan-${{ inputs.is-destroy == 'true' && 'destroy' || 'deploy' }}-${{ inputs.tf-env }}
+        path: |
+          ${{ inputs.tf-dir }}/tfplan
+          ${{ inputs.tf-dir }}/tfplan.txt
+          ${{ inputs.tf-dir }}/tfplan.json
+        overwrite: true
+        retention-days: 3
+
+    - name: Terraform Apply
+      if: inputs.mode != 'plan'
+      shell: bash
+      working-directory: ${{ inputs.tf-dir }}
+      env:
+        TF_IN_AUTOMATION: "1"
+      run: terraform apply -auto-approve -input=false -no-color tfplan
