@@ -42,7 +42,7 @@ module "eks_node_group" {
 
   node_group_tags = local.tags
 }
- 
+
 # ##############################
 # Karpenter(Auth model: Pod Identity)
 # ##############################
