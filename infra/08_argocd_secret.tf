@@ -3,21 +3,23 @@
 # Argocd: cluster secret
 # ##############################################################
 
-resource "kubectl_manifest" "gitops_secret" {
+resource "kubectl_manifest" "argocd_secret" {
   yaml_body = yamlencode({
     apiVersion = "v1"
     kind       = "Secret"
     metadata = {
-      name      = "gitops-secret"
+      name      = "argocd-secret"
       namespace = "argocd"
       labels = {
         "argocd.argoproj.io/secret-type" = "cluster"
       }
       annotations = {
-        "eso.role-arn"           = aws_iam_role.eso.arn
+        "aws-region"             = var.aws_region
+        "vpc.vpc-id"             = module.vpc.vpc_id
+        "eks.cluster-name"       = module.eks.cluster_name
         "eks.cluster-endpoint"   = module.eks.cluster_endpoint
         "eks.interruption-queue" = module.karpenter.queue_name
-        "vpc.vpc-id"             = module.vpc.vpc_id
+        "eso.role-arn"           = aws_iam_role.eso.arn
         "albc.role-arn"          = aws_iam_role.albc.arn
       }
     }

@@ -1,6 +1,6 @@
 ```sh
-terraform -chdir=infra/ init -backend-config=backend.config -upgrade
-terraform -chdir=infra/ init -backend-config=backend.config --reconfigure
+terraform -chdir=infra/ init -backend-config=backend-dev.config -upgrade
+terraform -chdir=infra/ init -backend-config=backend-dev.config --reconfigure
 terraform -chdir=infra/ fmt && terraform -chdir=infra/ validate
 terraform -chdir=infra/ plan
 
@@ -12,8 +12,7 @@ terraform -chdir=infra/ state list
 
 tflint --chdir=infra --init 
 tflint --chdir=infra --recursive --format compact
-aws eks update-kubeconfig --region ca-central-1 --name gitops-demo-dev
-
+aws eks update-kubeconfig --region ca-central-1 --name gitops-dev
 
 kubectl apply -f secret.yaml
 

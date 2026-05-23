@@ -3,7 +3,7 @@ locals {
   # ##############################
   # Project
   # ##############################
-  project_name = "gitops-demo"
+  project_name = "gitops"
 
   # ##############################
   # AWS
