@@ -43,10 +43,10 @@ variable "cloudflare_api_key" {
 #   sensitive   = true
 # }
 
-# # ##############################
-# # TLS
-# # ##############################
-# variable "acm_cert_arn" {
-#   description = "ARN of the ACM certificate covering the cluster hostnames (e.g. *.arguswatcher.net). Used by the Traefik NLB TLS listener."
-#   type        = string
-# }
+# ##############################
+# ACM cert
+# ##############################
+variable "tls_cert_arn" {
+  description = "ARN of the ACM certificate covering the cluster hostnames (e.g. *.arguswatcher.net). Used by the Traefik NLB TLS listener."
+  type        = string
+}

@@ -14,13 +14,20 @@ resource "kubectl_manifest" "argocd_secret" {
         "argocd.argoproj.io/secret-type" = "cluster"
       }
       annotations = {
+        "project"                = local.project_name
+        "env"                    = var.env
         "aws-region"             = var.aws_region
+        "hostname"               = "${local.project_name}-${var.env}.${local.domain}"
         "vpc.vpc-id"             = module.vpc.vpc_id
         "eks.cluster-name"       = module.eks.cluster_name
         "eks.cluster-endpoint"   = module.eks.cluster_endpoint
         "eks.interruption-queue" = module.karpenter.queue_name
+        "eso.cloudflare"         = local.eso_param_cloudflare
+        "eso.slack"              = local.eso_param_slack
         "eso.role-arn"           = aws_iam_role.eso.arn
         "albc.role-arn"          = aws_iam_role.albc.arn
+        "gateway.tls-cert-arn"   = var.tls_cert_arn
+        "gateway.alb-name"       = module.eks.cluster_name
       }
     }
     type = "Opaque"

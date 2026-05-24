@@ -4,8 +4,10 @@
 # ##############################################################
 
 locals {
-  eso_sa_namespace = "external-secrets"
-  eso_sa_name      = "external-secrets"
+  eso_sa_namespace     = "external-secrets"
+  eso_sa_name          = "external-secrets"
+  eso_param_cloudflare = "/gitops/${var.env}/cloudflare-api-key"
+  eso_param_slack      = "/gitops/${var.env}/slack-token"
 }
 
 # Trust policy: only the ESO ServiceAccount in external-secrets can assume this role
@@ -84,7 +86,7 @@ output "eso_role_arn" {
 }
 
 resource "aws_ssm_parameter" "cloudflare_api_key" {
-  name        = "/gitops/${var.env}/cloudflare/cloudflare-api-key"
+  name        = local.eso_param_cloudflare
   description = "The cloudflare api key "
   type        = "SecureString"
   value       = var.cloudflare_api_key
@@ -95,7 +97,7 @@ resource "aws_ssm_parameter" "cloudflare_api_key" {
 resource "aws_ssm_parameter" "argocd_slack_token" {
   count = var.slack_bot_token != "" ? 1 : 0
 
-  name        = "/gitops/${var.env}/argocd/slack-token"
+  name        = local.eso_param_slack
   description = "Slack bot OAuth token (xoxb-...) consumed by ArgoCD notifications via ESO"
   type        = "SecureString"
   value       = var.slack_bot_token
