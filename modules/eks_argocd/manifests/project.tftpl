@@ -1,10 +1,5 @@
 # project.tftpl
 # ArgoCD AppProject that scopes every Application synced under the
-# app-of-apps tree (root + children) to:
-#   - the GitOps repo declared by the caller
-#   - the in-cluster API server, any namespace
-#   - any resource kind (the GitOps repo installs platform components)
-# Tighten sourceRepos / destinations / *Whitelist if you need stricter RBAC.
 
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject

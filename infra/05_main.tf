@@ -32,15 +32,15 @@ module "eks" {
 module "eks_node_group" {
   source = "../modules/eks_node_group"
 
-  cluster_name    = module.eks.cluster_name
-  node_group_name = "bootstrap"
-  subnet_ids      = module.vpc.private_subnet_ids
+  cluster_name = module.eks.cluster_name
+  subnet_ids   = module.vpc.private_subnet_ids
 
-  instance_types = ["t3.medium"]
-  desired_size   = 2
-  min_size       = 1
-  max_size       = 3
-
+  # node group
+  node_group_name = local.node_group_name
+  instance_types  = local.node_instance_types
+  min_size        = local.node_min_size
+  max_size        = local.node_max_size
+  desired_size    = local.node_desired_size
   node_group_tags = local.tags
 }
 

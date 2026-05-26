@@ -95,8 +95,6 @@ resource "aws_ssm_parameter" "cloudflare_api_key" {
 }
 
 resource "aws_ssm_parameter" "argocd_slack_token" {
-  count = var.slack_bot_token != "" ? 1 : 0
-
   name        = local.eso_param_slack
   description = "Slack bot OAuth token (xoxb-...) consumed by ArgoCD notifications via ESO"
   type        = "SecureString"

@@ -31,10 +31,11 @@ locals {
   cluster_name    = "${local.project_name}-${var.env}"
   cluster_version = "1.35"
 
-  #   node_instance_types = ["t3.medium"]
-  #   node_min_size       = 1
-  #   node_max_size       = 3
-  #   node_desired_size   = 2
+  node_group_name     = "bootstrap"
+  node_instance_types = ["t3.medium"]
+  node_min_size       = 1
+  node_max_size       = 3
+  node_desired_size   = 2
   #   access_entries = {
   #     cluster_admin = {
   #       # principal_arn = "${aws_iam_role.eks_admin_access.arn}"
@@ -68,15 +69,4 @@ locals {
   #     #   description   = "Human: compliance and reporting, read-only"
   #     # }
   #   }
-
-  #   # ##############################
-  #   # Add-on
-  #   # ##############################
-  #   gitops_repo_url = "https://github.com/simonangel-fong/Project_GitOps_Config_Repo.git"
-
-  #   # ##############################
-  #   # Cloudflare
-  #   # ##############################s
-  #   dns_record = "arguswatcher.net"
-  #   dns_name   = "${var.dns_prefix}.${local.dns_record}"
 }
