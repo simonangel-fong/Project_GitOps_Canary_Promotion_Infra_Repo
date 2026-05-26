@@ -4,7 +4,6 @@ variable "cluster_name" {
   type        = string
 }
 
-
 variable "cluster_version" {
   description = "Kubernetes version for the EKS cluster"
   type        = string
@@ -75,5 +74,6 @@ variable "cluster_addons" {
     kube-proxy             = { most_recent = true }
     vpc-cni                = { most_recent = true }
     eks-pod-identity-agent = { most_recent = true }
+    metrics-server         = { most_recent = true }
   }
 }

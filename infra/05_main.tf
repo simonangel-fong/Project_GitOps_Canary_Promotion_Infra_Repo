@@ -72,30 +72,22 @@ module "karpenter" {
 module "eks_argocd" {
   source = "../modules/eks_argocd"
 
-  namespace     = "argocd"
-  release_name  = "argocd"
   chart_version = "9.5.14"
 
-  # Extra Helm values merged on top of module defaults
-  values = yamlencode({
-    server = {
-      service = { type = "LoadBalancer" }
-    }
-  })
+  # ArgoCD AppProject
+  project_name = local.project_name
 
   # Root app-of-apps
   enable_root_app      = true
   gitops_repo_url      = "https://github.com/simonangel-fong/Project_GitOps_Platform_Repo.git"
-  gitops_repo_revision = "main"
+  gitops_repo_revision = var.env
   gitops_repo_path     = "bootstrap"
-  root_app_name        = "00-app-of-apps"
-  root_app_project     = "default"
 
-  # argocd notification
+  # Turn on the notifications controller
   enable_notifications = var.slack_bot_token != ""
 
   depends_on = [
-    # module.eks_node_group,
+    module.eks_node_group,
     module.karpenter
   ]
 }

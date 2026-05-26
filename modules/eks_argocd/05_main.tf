@@ -4,17 +4,15 @@
 # ArgoCD Helm release
 # ##############################
 resource "helm_release" "argocd" {
-  name             = var.release_name
-  namespace        = var.namespace
+  name             = local.release_name
+  namespace        = local.namespace
   create_namespace = true
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
   version          = var.chart_version
 
   values = compact([
-    local.default_values,
-    local.notifications_values,
-    var.notifications_extra_values,
+    local.helm_values,
     var.values,
   ])
 
@@ -24,12 +22,21 @@ resource "helm_release" "argocd" {
 }
 
 # ##############################
+# AppProject (must exist before any Application that references it)
+# ##############################
+resource "kubectl_manifest" "project" {
+  yaml_body = local.rendered_project
+
+  depends_on = [helm_release.argocd]
+}
+
+# ##############################
 # Root Application (app-of-apps)
 # ##############################
 resource "kubectl_manifest" "root_app" {
   count = var.enable_root_app ? 1 : 0
 
-  yaml_body = yamlencode(local.root_application)
+  yaml_body = local.rendered_root_app
 
-  depends_on = [helm_release.argocd]
+  depends_on = [kubectl_manifest.project]
 }

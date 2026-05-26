@@ -111,7 +111,6 @@ resource "aws_vpc_security_group_ingress_rule" "node_additional" {
 
 # ##############################
 # OIDC Provider
-# (required for IRSA — IAM roles assumed by service accounts)
 # ##############################
 data "tls_certificate" "cluster" {
   url = aws_eks_cluster.main.identity[0].oidc[0].issuer

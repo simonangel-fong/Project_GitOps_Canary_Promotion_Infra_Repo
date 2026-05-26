@@ -2,12 +2,23 @@
 
 Terraform module that installs [Argo CD](https://argo-cd.readthedocs.io/) onto an existing EKS cluster via the official Helm chart and (optionally) bootstraps a **root "app-of-apps"** `Application` that points at your GitOps config repo.
 
+This module follows upstream ArgoCD conventions and hardcodes the names you'd otherwise be tempted to make configurable:
+
+| What             | Value             |
+| ---------------- | ----------------- |
+| Namespace        | `argocd`          |
+| Helm release     | `argocd`          |
+| Root Application | `00-app-of-apps`  |
+
+The Argo `AppProject` is named after `var.project_name` and scopes the root app-of-apps tree to your GitOps repo. If you need different namespace/release/root-app names, fork the module — don't bolt on parameters.
+
 ## What this module does
 
-1. Installs the `argo-cd` Helm chart from `https://argoproj.github.io/argo-helm` into the chosen namespace (created if missing).
-2. Applies a default `values.yaml` (ClusterIP server, empty global domain) merged with any extra values you pass.
-3. If `enable_root_app = true`, applies a single `Application` manifest that tells Argo CD to sync `gitops_repo_path` from `gitops_repo_url` — the entry point of the app-of-apps pattern.
-4. If `enable_notifications = true`, configures the chart's notifications sub-component for Slack. The Helm chart creates `argocd-notifications-secret` with the Slack bot token; subscriptions are typically annotated on individual `Application` manifests in the GitOps repo.
+1. Installs the `argo-cd` Helm chart from `https://argoproj.github.io/argo-helm` into the `argocd` namespace (created if missing).
+2. Renders [`manifests/values.tftpl`](./manifests/values.tftpl) (server type, notifications toggle) and merges your optional `var.values` YAML on top.
+3. Applies an `AppProject` named `var.project_name`, scoped to `var.gitops_repo_url` and the in-cluster API. Every Application under the root app-of-apps tree belongs to this project.
+4. If `enable_root_app = true`, applies a single `Application` (assigned to `var.project_name`) that tells Argo CD to sync `gitops_repo_path` from `gitops_repo_url` — the entry point of the app-of-apps pattern.
+5. If `enable_notifications = true`, flips on the chart's notifications controller. **Notifier configuration (`service.slack`, templates, triggers, subscriptions) and the `argocd-notifications-secret` are managed in-cluster** (typically ESO + the GitOps repo), not by this module.
 
 ## Requirements
 
@@ -27,6 +38,7 @@ The caller must configure the `helm` and `kubectl` providers to point at the tar
 module "eks_argocd" {
   source = "../../modules/eks_argocd"
 
+  project_name    = "gitops"
   gitops_repo_url = "https://github.com/your-org/your-gitops-config-repo.git"
 
   depends_on = [module.eks_node_group]
@@ -62,24 +74,26 @@ provider "kubectl" {
 module "eks_argocd" {
   source = "../../modules/eks_argocd"
 
-  namespace      = "argocd"
-  release_name   = "argocd"
-  chart_version  = "9.5.14"
+  chart_version = "9.5.14"
 
-  # Extra Helm values merged on top of module defaults
+  # Extra Helm values merged on top of values.tftpl
   values = yamlencode({
     server = {
       service = { type = "LoadBalancer" }
     }
   })
 
+  # AppProject (scopes the root app-of-apps tree)
+  project_name = "gitops"
+
   # Root app-of-apps
   enable_root_app      = true
   gitops_repo_url      = "https://github.com/your-org/your-gitops-config-repo.git"
   gitops_repo_revision = "main"
   gitops_repo_path     = "bootstrap"
-  root_app_name        = "root"
-  root_app_project     = "default"
+
+  # Turns on the notifications controller; notifier config lives in-cluster.
+  enable_notifications = true
 
   depends_on = [module.eks_node_group]
 }
@@ -91,34 +105,21 @@ module "eks_argocd" {
 module "eks_argocd" {
   source = "../../modules/eks_argocd"
 
+  project_name    = "gitops"
   enable_root_app = false
-  gitops_repo_url = "" # still required by the variable; ignored when disabled
-}
-```
-
-### Enable Slack notifications
-
-```hcl
-module "eks_argocd" {
-  source = "../../modules/eks_argocd"
-
   gitops_repo_url = "https://github.com/your-org/your-gitops-config-repo.git"
-
-  # Slack notifications
-  enable_notifications = true
-  slack_token          = var.slack_bot_token # xoxb-... ; sensitive
-
-  # Optional: cluster-wide subscriptions. Omit to require per-Application annotations.
-  notifications_default_subscriptions = [
-    {
-      recipients = ["slack:platform-alerts"]
-      triggers   = ["on-sync-failed", "on-health-degraded"]
-    },
-  ]
 }
 ```
 
-Per-`Application` subscription annotation (managed in your GitOps repo, not here):
+> The `AppProject` is always created (it's cheap and needed as soon as you flip `enable_root_app = true`). `gitops_repo_url` is still required because the project scopes `sourceRepos` to it.
+
+### Notifications
+
+This module only flips the controller on. Everything else is delivered through ArgoCD itself from your GitOps repo:
+
+- `argocd-notifications-secret` — created by an `ExternalSecret` that pulls the Slack bot token (e.g. from SSM/Secrets Manager) into the `argocd` namespace under the key `slack-token`.
+- `argocd-notifications-cm` — declares `service.slack`, templates, triggers, and any cluster-wide subscriptions.
+- Per-`Application` annotations — opt individual apps into channels:
 
 ```yaml
 metadata:
@@ -126,34 +127,38 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-failed.slack: my-channel
 ```
 
+Because the Slack token never enters Terraform, it never lands in TF state.
+
+## Templates
+
+The YAML payloads this module produces live as readable templates:
+
+- [`manifests/values.tftpl`](./manifests/values.tftpl) — base Helm values for the chart. Rendered with `enable_notifications`. Your `var.values` is appended afterwards, so later values win in the Helm merge.
+- [`manifests/project.tftpl`](./manifests/project.tftpl) — the `AppProject`. Rendered with `namespace`, `project_name`, `gitops_repo_url`. Tighten `sourceRepos` / `destinations` / `*Whitelist` here if you need stricter RBAC.
+- [`manifests/app-of-apps.tftpl`](./manifests/app-of-apps.tftpl) — the root `Application` manifest. Rendered with `namespace`, `root_app_name`, `root_app_project`, `gitops_repo_url`, `gitops_repo_revision`, `gitops_repo_path`.
+
 ## Inputs
 
 | Name                   | Description                                                                            | Type     | Default       | Required |
 | ---------------------- | -------------------------------------------------------------------------------------- | -------- | ------------- | :------: |
-| `namespace`            | Namespace where Argo CD is installed                                                   | `string` | `"argocd"`    |    no    |
-| `release_name`         | Helm release name for argo-cd                                                          | `string` | `"argocd"`    |    no    |
 | `chart_version`        | Version of the [argo-cd Helm chart](https://artifacthub.io/packages/helm/argo/argo-cd) | `string` | `"9.5.14"`    |    no    |
-| `values`               | Additional Helm values YAML, merged on top of module defaults                          | `string` | `""`          |    no    |
+| `values`               | Additional Helm values YAML, merged on top of `values.tftpl`                           | `string` | `""`          |    no    |
+| `project_name`         | Name of the Argo `AppProject` scoping the root app-of-apps tree                        | `string` | n/a           | **yes**  |
 | `enable_root_app`      | Whether to create the root app-of-apps `Application`                                   | `bool`   | `true`        |    no    |
 | `gitops_repo_url`      | Git URL of the GitOps config repo Argo CD will sync from                               | `string` | n/a           | **yes**  |
 | `gitops_repo_revision` | Git revision (branch, tag, or commit) tracked by the root app                          | `string` | `"HEAD"`      |    no    |
 | `gitops_repo_path`     | Path inside the GitOps repo with the root app-of-apps manifests                        | `string` | `"bootstrap"` |    no    |
-| `root_app_name`        | Name of the root Argo `Application`                                                    | `string` | `"root"`      |    no    |
-| `root_app_project`     | Argo CD project the root application belongs to                                        | `string` | `"default"`   |    no    |
-| `enable_notifications` | Enable Argo CD notifications sub-component (Slack)                                     | `bool`   | `false`       |    no    |
-| `slack_token`          | Slack bot OAuth token (`xoxb-...`); required when `enable_notifications = true`. Sensitive. | `string` | `""`     |    no    |
-| `notifications_default_subscriptions` | Optional cluster-wide subscriptions; each `{recipients, triggers}`      | `list(object({recipients=list(string), triggers=list(string)}))` | `[]` | no |
-| `notifications_extra_values` | Extra Helm values YAML merged into the notifications block (custom templates/triggers) | `string` | `""`     |    no    |
+| `enable_notifications` | Enable the Argo CD notifications controller (notifier config managed in-cluster)       | `bool`   | `false`       |    no    |
 
 ## Outputs
 
 | Name                    | Description                                             |
 | ----------------------- | ------------------------------------------------------- |
-| `namespace`             | Namespace where Argo CD was installed                   |
-| `release_name`          | Helm release name                                       |
+| `namespace`             | Namespace where Argo CD was installed (always `argocd`) |
+| `release_name`          | Helm release name (always `argocd`)                     |
 | `chart_version`         | Installed chart version                                 |
 | `root_app_name`         | Name of the root `Application`, or `null` when disabled |
-| `notifications_enabled` | Whether the Argo CD notifications sub-component is enabled |
+| `notifications_enabled` | Whether the Argo CD notifications controller is enabled |
 
 ## Accessing the Argo CD UI
 
@@ -177,16 +182,3 @@ Then open <https://localhost:8080> and log in as `admin`.
 - The Helm release is created with `wait = true` and a 600 s `timeout` because Argo CD CRDs are large and slow to install.
 - The root `Application` has `automated.prune = true` and `selfHeal = true`; anything you remove from the GitOps repo will be pruned from the cluster.
 - Always set `depends_on = [module.eks_node_group]` (or whatever creates worker nodes) so the chart has somewhere to schedule pods.
-- When `enable_notifications = true`, the Helm chart manages `argocd-notifications-secret` directly via `notifications.secret.create = true`. The token is passed through Helm values and will be stored in Terraform state — use an encrypted remote state backend (e.g. S3 with SSE and tight IAM) and rotate the bot token if state access is compromised.
-
----
-
-## Connetion
-
-```sh
-kubectl port-forward svc/argocd-server 8000:80 -n argocd
-
-k get secret argocd-initial-admin-secret -n argocd -o yaml
-
-echo "" | base64 -d
-```

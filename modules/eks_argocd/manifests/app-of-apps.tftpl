@@ -1,0 +1,27 @@
+# app-of-apps.tftpl
+# Root ArgoCD Application — the single entry point of the app-of-apps pattern.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${root_app_name}
+  namespace: ${namespace}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ${root_app_project}
+  source:
+    repoURL: ${gitops_repo_url}
+    targetRevision: ${gitops_repo_revision}
+    path: ${gitops_repo_path}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${namespace}
+  syncPolicy:
+    automated:
+      # Prune resources deleted from the GitOps repo.
+      prune: true
+      # Re-apply on out-of-band drift.
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -3,18 +3,6 @@
 # ##############################
 # ArgoCD chart
 # ##############################
-variable "namespace" {
-  description = "Namespace where ArgoCD is installed"
-  type        = string
-  default     = "argocd"
-}
-
-variable "release_name" {
-  description = "Helm release name for argo-cd"
-  type        = string
-  default     = "argocd"
-}
-
 variable "chart_version" {
   description = "Version of the argo-cd Helm chart (https://artifacthub.io/packages/helm/argo/argo-cd)"
   type        = string
@@ -22,9 +10,17 @@ variable "chart_version" {
 }
 
 variable "values" {
-  description = "Additional Helm values YAML for argo-cd, merged on top of module defaults"
+  description = "Additional Helm values YAML for argo-cd, merged on top of the rendered values.tftpl"
   type        = string
   default     = ""
+}
+
+# ##############################
+# ArgoCD AppProject
+# ##############################
+variable "project_name" {
+  description = "Name of the ArgoCD AppProject created for the root app-of-apps tree. Scopes sourceRepos to var.gitops_repo_url and destinations to the in-cluster API."
+  type        = string
 }
 
 # ##############################
@@ -53,35 +49,11 @@ variable "gitops_repo_path" {
   default     = "bootstrap"
 }
 
-variable "root_app_name" {
-  description = "Name of the root Argo Application (app-of-apps)"
-  type        = string
-  default     = "root"
-}
-
-variable "root_app_project" {
-  description = "ArgoCD project the root application belongs to"
-  type        = string
-  default     = "default"
-}
-
+# ##############################
+# Notification
+# ##############################
 variable "enable_notifications" {
-  description = "Enable ArgoCD notifications sub-component (Slack only, for now). Requires argocd-notifications-secret to exist with key 'slack-token' (managed by ESO)."
+  description = "Enable the ArgoCD notifications controller."
   type        = bool
   default     = false
-}
-
-variable "notifications_default_subscriptions" {
-  description = "Optional cluster-wide notification subscriptions. Each entry is a {recipients, triggers} object. Leave empty to require per-Application annotations."
-  type = list(object({
-    recipients = list(string) # e.g. ["slack:my-channel"]
-    triggers   = list(string) # e.g. ["on-sync-failed", "on-health-degraded"]
-  }))
-  default = []
-}
-
-variable "notifications_extra_values" {
-  description = "Extra Helm values YAML merged into the notifications block (custom templates, triggers, etc.). Applied after the module-generated notifications block, before var.values."
-  type        = string
-  default     = ""
 }

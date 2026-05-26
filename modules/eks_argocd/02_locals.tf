@@ -1,61 +1,37 @@
 # locals.tf
 locals {
-  # helm value
-  default_values = yamlencode({
-    global = {
-      domain = ""
-    }
-    server = {
-      service = {
-        type = "ClusterIP"
-      }
-    }
+  # ##############################
+  # ArgoCD conventions (per upstream docs)
+  # ##############################
+  namespace     = "argocd"
+  release_name  = "argocd"
+  root_app_name = "00-app-of-apps"
+
+  # ##############################
+  # Helm values
+  # ##############################
+  helm_values = templatefile("${path.module}/manifests/values.tftpl", {
+    enable_notifications = var.enable_notifications
   })
 
-  notifications_values = var.enable_notifications ? yamlencode({
-    notifications = merge(
-      {
-        enabled = true
-        notifiers = {
-          "service.slack" = "token: $slack-token\n"
-        }
-      },
-      length(var.notifications_default_subscriptions) > 0
-      ? { subscriptions = var.notifications_default_subscriptions }
-      : {}
-    )
-  }) : ""
+  # ##############################
+  # AppProject (scopes the root app-of-apps tree)
+  # ##############################
+  rendered_project = templatefile("${path.module}/manifests/project.tftpl", {
+    namespace       = local.namespace
+    project_name    = var.project_name
+    gitops_repo_url = var.gitops_repo_url
+  })
 
-  root_application = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "Application"
-    metadata = {
-      name      = var.root_app_name
-      namespace = var.namespace
-      finalizers = [
-        "resources-finalizer.argocd.argoproj.io",
-      ]
-    }
-    spec = {
-      project = var.root_app_project
-      source = {
-        repoURL        = var.gitops_repo_url
-        targetRevision = var.gitops_repo_revision
-        path           = var.gitops_repo_path
-      }
-      destination = {
-        server    = "https://kubernetes.default.svc"
-        namespace = var.namespace
-      }
-      syncPolicy = {
-        automated = {
-          prune    = true
-          selfHeal = true
-        }
-        syncOptions = [
-          "CreateNamespace=true",
-        ]
-      }
-    }
-  }
+  # ##############################
+  # Root Application (app-of-apps)
+  # ##############################
+  rendered_root_app = templatefile("${path.module}/manifests/app-of-apps.tftpl", {
+    namespace            = local.namespace
+    root_app_name        = local.root_app_name
+    root_app_project     = var.project_name
+    gitops_repo_url      = var.gitops_repo_url
+    gitops_repo_revision = var.gitops_repo_revision
+    gitops_repo_path     = var.gitops_repo_path
+  })
 }

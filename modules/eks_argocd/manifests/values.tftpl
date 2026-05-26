@@ -1,0 +1,16 @@
+# values.tftpl
+
+# --- global -------------------------------------------------------------
+# Empty until a real hostname is wired through ingress/gateway.
+global:
+  domain: ""
+
+# --- server -------------------------------------------------------------
+# ClusterIP keeps the API/UI internal; expose via gateway/ingress instead.
+server:
+  service:
+    type: ClusterIP
+
+# --- notifications ------------------------------------------------------
+notifications:
+  enabled: ${enable_notifications}
