@@ -1,8 +1,8 @@
-# Runbook: Debug Terraform Codes
+# Runbook: Debug Argocd
 
 [Back](../README.md)
 
-- [Runbook: Debug Terraform Codes](#runbook-debug-terraform-codes)
+- [Runbook: Debug Argocd](#runbook-debug-argocd)
   - [Terraform Module](#terraform-module)
   - [What this module does](#what-this-module-does)
   - [Requirements](#requirements)
