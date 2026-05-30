@@ -53,6 +53,10 @@ It manages:
 - App-of-Apps bootstrap for GitOps delivery
 - IAM roles and secrets required by platform add-ons such as ESO, ALBC, and ArgoCD
 
+![tf-env](./docs/assets/infra-diagram.png)
+
+---
+
 The repository is organized around Terraform ownership, environment separation, and reusable automation:
 
 ```text
@@ -110,3 +114,10 @@ This repository validates Terraform code, scans for secrets, and uses controlled
 | `trivy fs --scanners secret .`             | Detects exposed secrets, credentials, and tokens in the repository.                           |
 | `GitHub Actions OIDC + AWS IAM Role`       | Uses short-lived AWS credentials instead of long-lived access keys.                           |
 | `ArgoCD Secrets + AWS SSM Parameter Store` | Externalizes sensitive values and injects them into EKS through controlled secret management. |
+
+---
+
+- **Associated Repositories**
+  - [Platform Repository](https://github.com/simonangel-fong/Project_GitOps_Risk_Control_Platform_Repo.git)
+  - [Application Repository](https://github.com/simonangel-fong/Project_GitOps_Risk_Control_App_Repo.git)
+  - [Infrastructure Repository](https://github.com/simonangel-fong/Project_GitOps_Risk_Control_Infra_Repo.git)
